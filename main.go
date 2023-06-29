@@ -16,6 +16,33 @@ limitations under the License.
 
 package main
 
-func main() {
+import (
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/workpieces/log"
+	"net/http"
+)
 
+func Healthy(ctx *gin.Context) {
+	ctx.Status(http.StatusOK)
+}
+
+func Auth(ctx *gin.Context) {
+
+}
+
+func main() {
+	logg := log.NewNop()
+
+	logg.WithField("port", "")
+
+	g := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+
+	g.Any("/health", Healthy)
+	g.POST("/auth", Auth)
+
+	if err := g.Run(); err != nil {
+		panic(fmt.Errorf("http server run err: %s", err))
+	}
 }
