@@ -7,3 +7,5 @@ snapshots:
 	@goreleaser check
 	@goreleaser release --snapshot --skip-publish --rm-dist
 
+docker:
+	@docker build -t askaigo/chatgpt-accesstoken:v1.0.0 .
