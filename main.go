@@ -52,7 +52,7 @@ type accessTokenResponse struct {
 	AuthProvider string    `json:"authProvider"`
 }
 
-var tokensMap map[string]*accessTokenResponse
+var tokensMap = make(map[string]*accessTokenResponse)
 
 func (h *handler) Auth(ctx *gin.Context) {
 	in := new(accessTokenRequest)
