@@ -32,7 +32,7 @@ type openaiAuthLogger struct {
 }
 
 func NewOpenaiAuthLogger(logger log.Logger, svc akt.OpenaiAuthService) akt.OpenaiAuthService {
-	return &openaiAuthLogger{logger: logger, svc: svc}
+	return &openaiAuthLogger{logger: logger.WithField("openai", "service"), svc: svc}
 }
 
 func (o openaiAuthLogger) All(ctx context.Context, req *akt.OpenaiAuthRequest) (resp *auth.AuthResult, err error) {

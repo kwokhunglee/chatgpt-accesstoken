@@ -20,11 +20,11 @@ import (
 	"context"
 	"github.com/acheong08/OpenAIAuth/auth"
 	akt "github.com/chatgpt-accesstoken"
-	"github.com/chatgpt-accesstoken/store/redis"
+	"github.com/chatgpt-accesstoken/store/redisdb"
 )
 
 type openaiAuthCache struct {
-	db  redis.Redis
+	db  *redisdb.Redis
 	svc akt.OpenaiAuthService
 }
 
@@ -43,7 +43,7 @@ func (o openaiAuthCache) PUID(ctx context.Context, req *akt.OpenaiAuthRequest) (
 	panic("implement me")
 }
 
-func NewOpenaiAuthCache(db redis.Redis, svc akt.OpenaiAuthService) akt.OpenaiAuthService {
+func NewOpenaiAuthCache(db *redisdb.Redis, svc akt.OpenaiAuthService) akt.OpenaiAuthService {
 	return &openaiAuthCache{
 		db:  db,
 		svc: svc,

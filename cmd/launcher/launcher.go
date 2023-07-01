@@ -19,9 +19,14 @@ package launcher
 import (
 	"context"
 	"fmt"
-	"github.com/chatgpt-accesstoken/build"
+	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/chatgpt-accesstoken/build"
+	"github.com/chatgpt-accesstoken/core"
+	mux2 "github.com/chatgpt-accesstoken/mux"
+	"github.com/chatgpt-accesstoken/store/redisdb"
 
 	"github.com/workpieces/log"
 )
@@ -90,6 +95,39 @@ func (m *Launcher) run(ctx context.Context, opts Config) error {
 		WithField("commit", info.Commit).
 		WithField("build_date", info.Date).
 		Info("welcome to akt")
+
+	db := redisdb.New(opts.RedisDB)
+	m.closers = append(m.closers, labeledCloser{
+		label: "Redis Server",
+		closer: func(ctx context.Context) error {
+			return db.Close()
+		},
+	})
+
+	openaiAuthSvc := core.NewOpenaiAuthLogger(m.logger,
+		core.NewOpenaiAuthCache(db,
+			core.New()))
+
+	srv := &http.Server{
+		Addr:    opts.HttpBindAddress,
+		Handler: mux2.New(openaiAuthSvc).Handler(),
+	}
+
+	m.closers = append(m.closers, labeledCloser{
+		label:  "HTTP Server",
+		closer: srv.Shutdown,
+	})
+
+	m.wg.Add(1)
+	go func(log log.Logger) {
+		defer m.wg.Done()
+		log.WithField("port", opts.HttpBindAddress).Info("listening")
+
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.WithField("server", "http").Error(err)
+			m.cancel()
+		}
+	}(m.logger)
 
 	return nil
 }
