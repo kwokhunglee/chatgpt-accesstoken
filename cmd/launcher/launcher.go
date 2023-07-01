@@ -110,7 +110,7 @@ func (m *Launcher) run(ctx context.Context, opts Config) error {
 
 	srv := &http.Server{
 		Addr:    opts.HttpBindAddress,
-		Handler: mux2.New(openaiAuthSvc).Handler(),
+		Handler: mux2.New(openaiAuthSvc, core.NewProxyService(db)).Handler(),
 	}
 
 	m.closers = append(m.closers, labeledCloser{

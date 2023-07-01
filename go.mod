@@ -11,6 +11,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/bogdanfinn/fhttp v0.5.19 // indirect
 	github.com/bogdanfinn/tls-client v1.3.8 // indirect
 	github.com/bogdanfinn/utls v1.5.15 // indirect

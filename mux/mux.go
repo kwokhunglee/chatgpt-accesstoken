@@ -17,7 +17,13 @@ limitations under the License.
 package mux
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
+
+	"github.com/asaskevich/govalidator"
+
+	"github.com/chatgpt-accesstoken/render"
 
 	akt "github.com/chatgpt-accesstoken"
 	"github.com/gin-gonic/gin"
@@ -25,11 +31,13 @@ import (
 
 type Server struct {
 	openAuthSvc akt.OpenaiAuthService
+	proxySvc    akt.ProxyService
 }
 
-func New(openAuthSvc akt.OpenaiAuthService) *Server {
+func New(openAuthSvc akt.OpenaiAuthService, proxySvc akt.ProxyService) *Server {
 	return &Server{
 		openAuthSvc: openAuthSvc,
+		proxySvc:    proxySvc,
 	}
 }
 
@@ -37,47 +45,155 @@ func (s Server) Handler() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
-	r.Any("/health", Healthy)
+	r.Any("/health", s.Healthy)
 
 	r.Group("/auth", func(context *gin.Context) {
-		r.POST("/", handlerPostAuth)
-		r.POST("/puid", handlerPostPUID)
-		r.POST("/all", handlerPostAll)
+		r.POST("/", s.handlerPostAuth) // support 潘多拉
+		r.POST("/puid", s.handlerPostPUID)
+		r.POST("/all", s.handlerPostAll)
 	})
 
 	pg := r.Group("/proxy")
 	{
-		pg.GET("/", handlerGetProxy)
-		pg.POST("/", handlerPostProxy)
-		pg.DELETE("/", handlerDeleteProxy)
+		pg.GET("/", s.handlerGetProxy)
+		pg.POST("/", s.handlerPostProxy)
+		pg.DELETE("/:id", s.handlerDeleteProxy)
 	}
 	return r
 }
 
-func Healthy(ctx *gin.Context) {
-	ctx.Status(http.StatusOK)
+func (s Server) Healthy(ctx *gin.Context) {
+	ctx.Writer.WriteHeader(http.StatusNoContent)
 }
 
-func handlerPostAuth(ctx *gin.Context) {
+func (s Server) handlerPostAuth(ctx *gin.Context) {
+	in := new(akt.OpenaiAuthRequest)
+	if err := ctx.BindJSON(in); err != nil {
+		render.BadRequest(ctx.Writer, err)
+		return
+	}
 
+	if govalidator.IsNull(in.Email) {
+		render.BadRequest(ctx.Writer, errors.New("api: cannot find email"))
+		return
+	}
+
+	if govalidator.IsNull(in.Password) {
+		render.BadRequest(ctx.Writer, errors.New("api: cannot find password"))
+		return
+	}
+
+	res, err := s.openAuthSvc.AccessToken(ctx, in)
+	if err != nil {
+		render.InternalError(ctx.Writer, err)
+		return
+	}
+
+	render.JSON(ctx.Writer, struct {
+		Default string `json:"default"`
+	}{
+		Default: res.AccessToken,
+	}, http.StatusOK)
 }
 
-func handlerPostPUID(ctx *gin.Context) {
+func (s Server) handlerPostPUID(ctx *gin.Context) {
+	in := new(akt.OpenaiAuthRequest)
+	if err := ctx.BindJSON(in); err != nil {
+		render.BadRequest(ctx.Writer, err)
+		return
+	}
 
+	if govalidator.IsNull(in.AccessToken) {
+		render.BadRequest(ctx.Writer, errors.New("api: cannot access token"))
+		return
+	}
+
+	res, err := s.openAuthSvc.PUID(ctx, in)
+	if err != nil {
+		render.InternalError(ctx.Writer, err)
+		return
+	}
+	render.JSON(ctx.Writer, res, http.StatusOK)
 }
 
-func handlerPostAll(ctx *gin.Context) {
+func (s Server) handlerPostAll(ctx *gin.Context) {
+	in := new(akt.OpenaiAuthRequest)
+	if err := ctx.BindJSON(in); err != nil {
+		render.BadRequest(ctx.Writer, err)
+		return
+	}
 
+	if govalidator.IsNull(in.Email) {
+		render.BadRequest(ctx.Writer, errors.New("api: cannot find email"))
+		return
+	}
+
+	if govalidator.IsNull(in.Password) {
+		render.BadRequest(ctx.Writer, errors.New("api: cannot find password"))
+		return
+	}
+
+	res, err := s.openAuthSvc.AccessToken(ctx, in)
+	if err != nil {
+		render.InternalError(ctx.Writer, err)
+		return
+	}
+	render.JSON(ctx.Writer, res, http.StatusOK)
 }
 
-func handlerGetProxy(ctx *gin.Context) {
+func (s Server) handlerGetProxy(ctx *gin.Context) {
+	list, err := s.proxySvc.List(ctx)
+	if err != nil {
+		render.InternalError(ctx.Writer, err)
+		return
+	}
 
+	render.JSON(ctx.Writer, list, 20)
 }
 
-func handlerPostProxy(ctx *gin.Context) {
-
+type proxyRequest struct {
+	Proxy string `json:"proxy"`
 }
 
-func handlerDeleteProxy(ctx *gin.Context) {
+func (s Server) handlerPostProxy(ctx *gin.Context) {
+	in := new(proxyRequest)
+	if err := ctx.BindJSON(in); err != nil {
+		render.BadRequest(ctx.Writer, err)
+		return
+	}
 
+	if govalidator.IsNull(in.Proxy) {
+		render.BadRequest(ctx.Writer, errors.New("api: cannot find proxy"))
+		return
+	}
+
+	if err := s.proxySvc.Add(ctx, in.Proxy); err != nil {
+		render.InternalError(ctx.Writer, err)
+		return
+	}
+
+	ctx.Writer.WriteHeader(http.StatusNoContent)
+}
+
+func (s Server) handlerDeleteProxy(ctx *gin.Context) {
+	ip := ctx.Param("ip")
+	if govalidator.IsNull(ip) {
+		render.BadRequest(ctx.Writer, errors.New("api: cannot find ip"))
+		return
+	}
+
+	if err := s.proxySvc.Delete(ctx, ip); err != nil {
+		render.InternalError(ctx.Writer, err)
+		return
+	}
+	ctx.Writer.WriteHeader(http.StatusNoContent)
+}
+
+// JSON writes the json-encoded error message to the response
+// with a 400 bad request status code.
+func JSON(w http.ResponseWriter, v interface{}, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	enc := json.NewEncoder(w)
+	enc.Encode(v)
 }

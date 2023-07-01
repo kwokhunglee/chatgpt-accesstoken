@@ -38,3 +38,12 @@ type OpenaiAuthService interface {
 	// PUID just getting the PUID will not trigger getting the access token.
 	PUID(ctx context.Context, req *OpenaiAuthRequest) (*auth.AuthResult, error)
 }
+
+type ProxyService interface {
+	// List get proxy list.
+	List(ctx context.Context) ([]string, error)
+	// Add insert proxy ip into redis db.
+	Add(ctx context.Context, ip string) error
+	// Delete proxy ip from redis db.
+	Delete(ctx context.Context, ip string) error
+}
