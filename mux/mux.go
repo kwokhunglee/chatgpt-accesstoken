@@ -47,11 +47,12 @@ func (s Server) Handler() *gin.Engine {
 
 	r.Any("/health", s.Healthy)
 
-	r.Group("/auth", func(context *gin.Context) {
-		r.POST("/", s.handlerPostAuth) // support 潘多拉
-		r.POST("/puid", s.handlerPostPUID)
-		r.POST("/all", s.handlerPostAll)
-	})
+	ag := r.Group("/auth")
+	{
+		ag.POST("/", s.handlerPostAccessToken) // support [潘多拉]
+		ag.POST("/puid", s.handlerPostPUID)
+		ag.POST("/all", s.handlerPostAll)
+	}
 
 	pg := r.Group("/proxy")
 	{
@@ -66,7 +67,7 @@ func (s Server) Healthy(ctx *gin.Context) {
 	ctx.Writer.WriteHeader(http.StatusNoContent)
 }
 
-func (s Server) handlerPostAuth(ctx *gin.Context) {
+func (s Server) handlerPostAccessToken(ctx *gin.Context) {
 	in := new(akt.OpenaiAuthRequest)
 	if err := ctx.BindJSON(in); err != nil {
 		render.BadRequest(ctx.Writer, err)

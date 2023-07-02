@@ -70,6 +70,8 @@ type Config struct {
 	LogLevel string `envconfig:"LOGGER_LEVEL" default:"info"`
 	// HttpBindAddress set the environment http address and port.
 	HttpBindAddress string `envconfig:"HTTP_BIND_ADDRESS" default:":8080"`
+	// UseLocalDB use local cache db.
+	UseLocalDB bool `envconfig:"USE_LOCAL_DB" default:"true"`
 	// ProxyFileName set the environment proxy filename.
 	ProxyFileName string `envconfig:"PROXY_FILENAME"`
 	// RedisDB set the environment variables of redis
@@ -84,11 +86,14 @@ func Environ() (Config, error) {
 }
 
 func (c Config) Validate() error {
-	if c.ProxyFileName != "" {
-		_, err := os.Stat(c.ProxyFileName)
-		if err != nil {
-			return err
+	if c.UseLocalDB {
+		if c.ProxyFileName != "" {
+			_, err := os.Stat(c.ProxyFileName)
+			if err != nil {
+				return err
+			}
 		}
+		return nil
 	}
 	return c.RedisDB.Validate()
 }

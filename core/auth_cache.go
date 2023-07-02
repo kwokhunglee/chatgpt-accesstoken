@@ -18,34 +18,59 @@ package core
 
 import (
 	"context"
+	"math/rand"
+
 	"github.com/acheong08/OpenAIAuth/auth"
 	akt "github.com/chatgpt-accesstoken"
-	"github.com/chatgpt-accesstoken/store/redisdb"
 )
 
 type openaiAuthCache struct {
-	db  *redisdb.Redis
-	svc akt.OpenaiAuthService
+	proxySvc akt.ProxyService
+	svc      akt.OpenaiAuthService
 }
 
 func (o openaiAuthCache) All(ctx context.Context, req *akt.OpenaiAuthRequest) (*auth.AuthResult, error) {
-	//TODO implement me
-	panic("implement me")
+	if req.Proxy == "" {
+		list, err := o.proxySvc.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		idx := rand.Intn(len(list))
+		req.Proxy = list[idx]
+	}
+	return o.svc.All(ctx, req)
 }
 
 func (o openaiAuthCache) AccessToken(ctx context.Context, req *akt.OpenaiAuthRequest) (*auth.AuthResult, error) {
-	//TODO implement me
-	panic("implement me")
+	if req.Proxy == "" {
+		list, err := o.proxySvc.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		idx := rand.Intn(len(list))
+		req.Proxy = list[idx]
+	}
+	return o.svc.AccessToken(ctx, req)
 }
 
 func (o openaiAuthCache) PUID(ctx context.Context, req *akt.OpenaiAuthRequest) (*auth.AuthResult, error) {
-	//TODO implement me
-	panic("implement me")
+	if req.Proxy == "" {
+		list, err := o.proxySvc.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		idx := rand.Intn(len(list))
+		req.Proxy = list[idx]
+	}
+	return o.svc.PUID(ctx, req)
 }
 
-func NewOpenaiAuthCache(db *redisdb.Redis, svc akt.OpenaiAuthService) akt.OpenaiAuthService {
+func NewOpenaiAuthCache(proxySvc akt.ProxyService, svc akt.OpenaiAuthService) akt.OpenaiAuthService {
 	return &openaiAuthCache{
-		db:  db,
-		svc: svc,
+		proxySvc: proxySvc,
+		svc:      svc,
 	}
 }

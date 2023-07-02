@@ -17,11 +17,15 @@ limitations under the License.
 package launcher
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
+
+	akt "github.com/chatgpt-accesstoken"
 
 	"github.com/chatgpt-accesstoken/build"
 	"github.com/chatgpt-accesstoken/core"
@@ -45,6 +49,7 @@ type Launcher struct {
 
 	httpPort int
 	logger   log.Logger
+	proxySvc akt.ProxyService
 }
 
 // NewLauncher returns a new instance of Launcher with a no-op logger.
@@ -96,21 +101,32 @@ func (m *Launcher) run(ctx context.Context, opts Config) error {
 		WithField("build_date", info.Date).
 		Info("welcome to akt")
 
-	db := redisdb.New(opts.RedisDB)
-	m.closers = append(m.closers, labeledCloser{
-		label: "Redis Server",
-		closer: func(ctx context.Context) error {
-			return db.Close()
-		},
-	})
+	var proxySvc akt.ProxyService
+	{
+		if !opts.UseLocalDB {
+			db := redisdb.New(opts.RedisDB)
+			m.closers = append(m.closers, labeledCloser{
+				label: "Redis Server",
+				closer: func(ctx context.Context) error {
+					return db.Close()
+				},
+			})
+			proxySvc = core.NewProxyService(db)
+		} else {
+			proxySvc = core.NewProxyLocalService()
+		}
 
-	openaiAuthSvc := core.NewOpenaiAuthLogger(m.logger,
-		core.NewOpenaiAuthCache(db,
-			core.New()))
+		m.proxySvc = proxySvc
+		if err := m.loadLocalProxy(ctx, opts.ProxyFileName); err != nil {
+			return err
+		}
+	}
+
+	openaiAuthSvc := core.NewOpenaiAuthLogger(m.logger, core.NewOpenaiAuthCache(proxySvc, core.New()))
 
 	srv := &http.Server{
 		Addr:    opts.HttpBindAddress,
-		Handler: mux2.New(openaiAuthSvc, core.NewProxyService(db)).Handler(),
+		Handler: mux2.New(openaiAuthSvc, proxySvc).Handler(),
 	}
 
 	m.closers = append(m.closers, labeledCloser{
@@ -129,5 +145,42 @@ func (m *Launcher) run(ctx context.Context, opts Config) error {
 		}
 	}(m.logger)
 
+	return nil
+}
+
+func (m *Launcher) loadLocalProxy(ctx context.Context, filename string) error {
+	filename = "/Users/taoshumin_vendor/go/src/github.com/workpieces/chatgpt-accesstoken/test/local-unuse-proxy.txt"
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		// http://hahaha:xixixi@202.182.69.8:17575
+		// 207.170.169.222:12323:14a39d51ccd93:1ce030a7f9
+		val := strings.Split(line, ":")
+		if len(val) != 4 {
+			return fmt.Errorf("scan: cannot parse formate")
+		}
+
+		ip := val[0]
+		port := val[1]
+		user := val[2]
+		pwd := val[3]
+
+		m.logger.WithField("proxy", line).Info()
+		if err := m.proxySvc.Add(ctx, fmt.Sprintf("http://%s:%s@%s:%s", user, pwd, ip, port)); err != nil {
+			return err
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	count, _ := m.proxySvc.List(ctx)
+	m.logger.WithField("count", len(count)).Info()
 	return nil
 }

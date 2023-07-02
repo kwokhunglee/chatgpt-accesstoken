@@ -7,6 +7,6 @@ POST {{URL}}/auth
 Content-Type: application/json
 
 {
-  "email": "ChatGPT email",
-  "password": "ChatGPT password"
+  "email": "nterfaiscubrappmun@mail.com",
+  "password": "FmwwZc0WPX"
 }
