@@ -149,7 +149,6 @@ func (m *Launcher) run(ctx context.Context, opts Config) error {
 }
 
 func (m *Launcher) loadLocalProxy(ctx context.Context, filename string) error {
-	filename = "/Users/taoshumin_vendor/go/src/github.com/workpieces/chatgpt-accesstoken/test/local-unuse-proxy.txt"
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -181,6 +180,6 @@ func (m *Launcher) loadLocalProxy(ctx context.Context, filename string) error {
 	}
 
 	count, _ := m.proxySvc.List(ctx)
-	m.logger.WithField("count", len(count)).Info()
+	m.logger.WithField("total", len(count)).Info()
 	return nil
 }
