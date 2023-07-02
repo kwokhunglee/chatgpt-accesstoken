@@ -43,6 +43,7 @@ func (o openaiAuthCache) All(ctx context.Context, req *akt.OpenaiAuthRequest) (*
 }
 
 func (o openaiAuthCache) AccessToken(ctx context.Context, req *akt.OpenaiAuthRequest) (*auth.AuthResult, error) {
+
 	if req.Proxy == "" {
 		list, err := o.proxySvc.List(ctx)
 		if err != nil {
