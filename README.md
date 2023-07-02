@@ -17,3 +17,9 @@
 ```shell
 make snapshots
 ```
+
+### 镜像版本
+
+```shell
+docker pull askaigo/chatgpt-accesstoken:latest 
+```
