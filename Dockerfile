@@ -8,7 +8,7 @@ COPY . .
 
 ENV GO111MODULE=on
 ENV GOPROXY=https://goproxy.cn,direct
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -o accesstokend main.go
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -o accesstokend cmd/main.go
 
 FROM alpine:latest
 RUN apk add --no-cache tzdata
@@ -16,4 +16,4 @@ ENV TZ=Asia/Shanghai
 EXPOSE 8080
 WORKDIR /
 COPY --from=builder /workspace/accesstokend .
-ENTRYPOINT ["/accesstokend"]
+ENTRYPOINT ["/accesstokend","akt"]

@@ -1,0 +1,12 @@
+services:
+  chatgpt-accesstoken:
+    container_name: chatgpt-accesstoken
+    image: askaigo/chatgpt-accesstoken:v2.0.0-dd8ee3b
+    ports:
+      - 8080:8080
+    environment:
+      - PROXY_FILENAME=/root/proxy.txt
+    volumes:
+      - ./proxy.txt:/root/proxy.txt
+    restart: unless-stopped
+
