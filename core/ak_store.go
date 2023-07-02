@@ -30,7 +30,7 @@ type accessTokenStore struct {
 }
 
 func (a *accessTokenStore) Add(ctx context.Context, email string, ak *akt.AuthExpireResult) error {
-	a.lock.Unlock()
+	a.lock.Lock()
 	defer a.lock.Unlock()
 
 	a.db[email] = ak
@@ -38,7 +38,7 @@ func (a *accessTokenStore) Add(ctx context.Context, email string, ak *akt.AuthEx
 }
 
 func (a *accessTokenStore) Delete(ctx context.Context, email string) error {
-	a.lock.Unlock()
+	a.lock.Lock()
 	defer a.lock.Unlock()
 
 	delete(a.db, email)
