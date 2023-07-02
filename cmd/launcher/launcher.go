@@ -122,7 +122,12 @@ func (m *Launcher) run(ctx context.Context, opts Config) error {
 		}
 	}
 
-	openaiAuthSvc := core.NewOpenaiAuthLogger(m.logger, core.NewOpenaiAuthCache(proxySvc, core.New()))
+	var akStore akt.AccessTokenStore
+	{
+		akStore = core.NewAccessTokenStore()
+	}
+
+	openaiAuthSvc := core.NewOpenaiAuthLogger(m.logger, core.NewOpenaiAuthCache(proxySvc, core.New(), akStore, m.logger))
 
 	srv := &http.Server{
 		Addr:    opts.HttpBindAddress,

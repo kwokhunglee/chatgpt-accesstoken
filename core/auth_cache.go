@@ -19,6 +19,9 @@ package core
 import (
 	"context"
 	"math/rand"
+	"time"
+
+	"github.com/workpieces/log"
 
 	"github.com/acheong08/OpenAIAuth/auth"
 	akt "github.com/chatgpt-accesstoken"
@@ -27,9 +30,23 @@ import (
 type openaiAuthCache struct {
 	proxySvc akt.ProxyService
 	svc      akt.OpenaiAuthService
+	akStore  akt.AccessTokenStore
+	logger   log.Logger
 }
 
 func (o openaiAuthCache) All(ctx context.Context, req *akt.OpenaiAuthRequest) (*auth.AuthResult, error) {
+	res, err := o.akStore.Get(ctx, req.Email)
+	if err == nil {
+		if time.Now().Before(res.Expires) {
+			o.logger.Info("api: token not expire")
+			return res.AuthResult, nil
+		} else {
+			o.logger.Info("api: token has expire")
+			goto LABEL
+		}
+	}
+
+LABEL:
 	if req.Proxy == "" {
 		list, err := o.proxySvc.List(ctx)
 		if err != nil {
@@ -39,10 +56,33 @@ func (o openaiAuthCache) All(ctx context.Context, req *akt.OpenaiAuthRequest) (*
 		idx := rand.Intn(len(list))
 		req.Proxy = list[idx]
 	}
-	return o.svc.All(ctx, req)
+	resp, err := o.svc.All(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := o.akStore.Add(ctx, req.Email, &akt.AuthExpireResult{
+		AuthResult: resp,
+		Expires:    time.Now().Add(14 * 24 * time.Hour),
+	}); err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (o openaiAuthCache) AccessToken(ctx context.Context, req *akt.OpenaiAuthRequest) (*auth.AuthResult, error) {
+	res, err := o.akStore.Get(ctx, req.Email)
+	if err == nil {
+		if time.Now().Before(res.Expires) {
+			o.logger.Info("api: token not expire")
+			return res.AuthResult, nil
+		} else {
+			o.logger.Info("api: token has expire")
+			goto LABEL
+		}
+	}
+
+LABEL:
 
 	if req.Proxy == "" {
 		list, err := o.proxySvc.List(ctx)
@@ -53,10 +93,34 @@ func (o openaiAuthCache) AccessToken(ctx context.Context, req *akt.OpenaiAuthReq
 		idx := rand.Intn(len(list))
 		req.Proxy = list[idx]
 	}
-	return o.svc.AccessToken(ctx, req)
+	resp, err := o.svc.AccessToken(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := o.akStore.Add(ctx, req.Email, &akt.AuthExpireResult{
+		AuthResult: resp,
+		Expires:    time.Now().Add(14 * 24 * time.Hour),
+	}); err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (o openaiAuthCache) PUID(ctx context.Context, req *akt.OpenaiAuthRequest) (*auth.AuthResult, error) {
+	res, err := o.akStore.Get(ctx, req.Email)
+	if err == nil {
+		if time.Now().Before(res.Expires) {
+			o.logger.Info("api: token not expire")
+			return res.AuthResult, nil
+		} else {
+			o.logger.Info("api: token has expire")
+			goto LABEL
+		}
+	}
+
+LABEL:
+
 	if req.Proxy == "" {
 		list, err := o.proxySvc.List(ctx)
 		if err != nil {
@@ -66,12 +130,25 @@ func (o openaiAuthCache) PUID(ctx context.Context, req *akt.OpenaiAuthRequest) (
 		idx := rand.Intn(len(list))
 		req.Proxy = list[idx]
 	}
-	return o.svc.PUID(ctx, req)
+	resp, err := o.svc.PUID(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := o.akStore.Add(ctx, req.Email, &akt.AuthExpireResult{
+		AuthResult: resp,
+		Expires:    time.Now().Add(14 * 24 * time.Hour),
+	}); err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
-func NewOpenaiAuthCache(proxySvc akt.ProxyService, svc akt.OpenaiAuthService) akt.OpenaiAuthService {
+func NewOpenaiAuthCache(proxySvc akt.ProxyService, svc akt.OpenaiAuthService, akStore akt.AccessTokenStore, logger log.Logger) akt.OpenaiAuthService {
 	return &openaiAuthCache{
 		proxySvc: proxySvc,
 		svc:      svc,
+		akStore:  akStore,
+		logger:   logger.WithField("auth", "service"),
 	}
 }

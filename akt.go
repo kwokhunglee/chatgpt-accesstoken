@@ -18,6 +18,7 @@ package chatgpt_accesstoken
 
 import (
 	"context"
+	"time"
 
 	"github.com/acheong08/OpenAIAuth/auth"
 )
@@ -46,4 +47,15 @@ type ProxyService interface {
 	Add(ctx context.Context, ip string) error
 	// Delete proxy ip from redis db.
 	Delete(ctx context.Context, ip string) error
+}
+
+type AuthExpireResult struct {
+	*auth.AuthResult
+	Expires time.Time `json:"expires"`
+}
+
+type AccessTokenStore interface {
+	Add(ctx context.Context, email string, ak *AuthExpireResult) error
+	Delete(ctx context.Context, email string) error
+	Get(ctx context.Context, email string) (*AuthExpireResult, error)
 }
