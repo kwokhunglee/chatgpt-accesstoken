@@ -18,6 +18,7 @@ package launcher
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/chatgpt-accesstoken/store/redisdb"
@@ -83,6 +84,11 @@ func Environ() (Config, error) {
 }
 
 func (c Config) Validate() error {
-
+	if c.ProxyFileName != "" {
+		_, err := os.Stat(c.ProxyFileName)
+		if err != nil {
+			return err
+		}
+	}
 	return c.RedisDB.Validate()
 }
